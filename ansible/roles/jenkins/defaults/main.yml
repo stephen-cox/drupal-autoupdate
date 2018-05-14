@@ -1,11 +1,3 @@
 ##
 # Jenkins - defaults
 ---
-
-##
-# Create deploy jobs
-jenkins_create_jobs: no
-
-##
-# Jenkins home
-jenkins_home: /var/lib/jenkins

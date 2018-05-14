@@ -22,10 +22,7 @@
     name: "{{ jenkins_node_user }}"
     home: "{{ jenkins_node_user_home }}"
     shell: /bin/bash
-  tags:
-    - jenkins_slave
 
-#
 - name: Create deploy user SSH directory
   file:
     path: "{{ jenkins_node_user_home }}/.ssh"
