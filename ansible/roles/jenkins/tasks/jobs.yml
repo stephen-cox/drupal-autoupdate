@@ -1,0 +1,81 @@
+##
+# Jenkins - jobs tasks
+---
+
+- name: Create Jenkins Drupal deploy job directory
+  file:
+    path: "/var/lib/jenkins/jobs/{{ jenkins_deploy_jobs_folder }}deploy_{{ item.name }}"
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: 0775
+  when: jenkins_create_jobs and item.drush_alias is defined and item.git_repo is defined
+  with_items: "{{ drupal_sites }}"
+  no_log: "{{ no_log_preference }}"
+  tags:
+    - jenkins_job
+
+- name: Create Jenkins Drupal deploy job configuration
+  template:
+    src: deploy_config.xml.j2
+    dest: "/var/lib/jenkins/jobs/{{ jenkins_deploy_jobs_folder }}deploy_{{ item.name }}/config.xml"
+    owner: jenkins
+    group: jenkins
+    mode: 0664
+  when: jenkins_create_jobs and item.drush_alias is defined and item.git_repo is defined
+  with_items: "{{ drupal_sites }}"
+  no_log: "{{ no_log_preference }}"
+  tags:
+    - jenkins_job
+
+- name: Create Jenkins Drupal autoupdate job directory
+  file:
+    path: "/var/lib/jenkins/jobs/{{ jenkins_autoupdate_jobs_folder }}autoupdate_{{ item.name }}"
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: 0775
+  when: jenkins_create_jobs and item.drush_alias is defined and item.git_repo is defined
+  with_items: "{{ drupal_sites }}"
+  no_log: "{{ no_log_preference }}"
+  tags:
+    - jenkins_job
+
+- name: Create Jenkins Drupal autoupdate job configuration
+  template:
+    src: autoupdate_config.xml.j2
+    dest: "/var/lib/jenkins/jobs/{{ jenkins_autoupdate_jobs_folder }}autoupdate_{{ item.name }}/config.xml"
+    owner: jenkins
+    group: jenkins
+    mode: 0664
+  when: jenkins_create_jobs and item.drush_alias is defined and item.git_repo is defined
+  with_items: "{{ drupal_sites }}"
+  no_log: "{{ no_log_preference }}"
+  tags:
+    - jenkins_job
+
+- name: Create Jenkins Drupal autoupdate promotions directory
+  file:
+    path: "/var/lib/jenkins/jobs/{{ jenkins_autoupdate_jobs_folder }}autoupdate_{{ item.name }}/promotions/finalise_hotfix"
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: 0775
+  when: jenkins_create_jobs and item.drush_alias is defined and item.git_repo is defined
+  with_items: "{{ drupal_sites }}"
+  no_log: "{{ no_log_preference }}"
+  tags:
+    - jenkins_job
+
+- name: Create Jenkins Drupal autoupdate job configuration
+  template:
+    src: finalise_hotfix_config.xml.j2
+    dest: "/var/lib/jenkins/jobs/{{ jenkins_autoupdate_jobs_folder }}autoupdate_{{ item.name }}/promotions/finalise_hotfix/config.xml"
+    owner: jenkins
+    group: jenkins
+    mode: 0664
+  when: jenkins_create_jobs and item.drush_alias is defined and item.git_repo is defined
+  with_items: "{{ drupal_sites }}"
+  no_log: "{{ no_log_preference }}"
+  tags:
+    - jenkins_job

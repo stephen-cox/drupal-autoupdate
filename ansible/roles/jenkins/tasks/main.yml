@@ -1,0 +1,121 @@
+##
+# Jenkins - tasks
+---
+
+- name: Install Java
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+  with_items:
+    - openjdk-8-jdk
+
+- name: Add Jenkins apt repo key
+  apt_key:
+    url: https://pkg.jenkins.io/debian/jenkins-ci.org.key
+    state: present
+
+- name: Add Jenkins apt repo
+  apt_repository:
+    repo: deb https://pkg.jenkins.io/debian-stable binary/
+    update_cache: yes
+
+- name: Install Jenkins and required libraries
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+  with_items:
+    - jenkins
+    - python-pip
+
+- name: Install python-jenkins
+  pip:
+    executable: pip2
+    name: python-jenkins
+    state: latest
+
+- name: Create init scripts directory
+  file:
+    path: /var/lib/jenkins/init.groovy.d
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: 0775
+
+- name: Add init script to disable security
+  copy:
+    src: disable-security.groovy
+    dest: /var/lib/jenkins/init.groovy.d/disable-security.groovy
+    owner: jenkins
+    group: jenkins
+    mode: 0775
+
+- name: Create jenkins SSH directory
+  file:
+    path: /var/lib/jenkins/.ssh
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: 0775
+
+- name: Add jenkins SSH private key
+  copy:
+    src: jenkins_key
+    dest: /var/lib/jenkins/.ssh/id_rsa
+    owner: jenkins
+    group: jenkins
+    mode: 0600
+
+- name: Add jenkins SSH public key
+  copy:
+    src: jenkins_key.pub
+    dest: /var/lib/jenkins/.ssh/id_rsa.pub
+    owner: jenkins
+    group: jenkins
+    mode: 0600
+
+- name: Add Jenkins credentials
+  copy:
+    src: credentials.xml
+    dest: /var/lib/jenkins/credentials.xml
+    owner: jenkins
+    group: jenkins
+    mode: 0664
+  notify: restart jenkins
+
+- name: Restart Jenkins if necessary
+  meta: flush_handlers
+
+- name: Disable security
+  replace:
+    dest: /var/lib/jenkins/config.xml
+    regexp: '<useSecurity>true</useSecurity>'
+    replace: '<useSecurity>false</useSecurity>'
+  notify: restart jenkins
+
+- name: Restart Jenkins if necessary
+  meta: flush_handlers
+
+- name: Wait for Jenkins to start up
+  uri:
+    url: http://localhost:8080
+    status_code: 200
+    timeout: 5
+  register: jenkins_service_status
+  # Keep trying for 5 mins in 5 sec intervals
+  retries: 60
+  delay: 5
+  until: >
+     'status' in jenkins_service_status and
+     jenkins_service_status['status'] == 200
+
+- name: Install plugins
+  jenkins_plugin:
+    name: "{{ item }}"
+  with_items:
+    - git
+    - ssh-slaves
+  notify: restart jenkins

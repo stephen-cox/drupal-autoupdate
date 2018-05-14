@@ -1,0 +1,19 @@
+##
+# PHP - Defaults
+---
+
+##
+# PHP memory limit
+php_memory_limit: 256M
+
+##
+# PHP max post size
+php_post_max_size: 32M
+
+##
+# PHP max file upload size
+php_upload_max_filesize: 32M
+
+##
+# Drush version
+drush_version: 9.2.3

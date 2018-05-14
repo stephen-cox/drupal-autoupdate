@@ -1,0 +1,31 @@
+##
+# Drupal site - site tasks
+---
+
+- name: Create database
+  mysql_db:
+    name: "{{ site.name }}"
+    collation: utf8mb4_general_ci
+    encoding: utf8mb4
+    state: present
+
+- name: Add Apache vhost configuration.
+  template:
+    src: vhost.conf.j2
+    dest: "/etc/apache2/sites-available/{{ site.name }}.conf"
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart apache2
+
+- name: Add Apache vhost symlink in sites-enabled
+  file:
+    src: "/etc/apache2/sites-available/{{ site.name }}.conf"
+    dest: "/etc/apache2/sites-enabled/{{ site.name }}.conf"
+    state: link
+  notify: restart apache2
+
+- name: Create a directory for the site
+  file:
+    path: "/var/www/{{ site.name }}"
+    state: directory

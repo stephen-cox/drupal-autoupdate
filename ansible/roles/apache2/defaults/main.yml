@@ -1,0 +1,9 @@
+##
+# Apache2 - Defaults
+---
+
+##
+# Default sites
+sites:
+  - name: umami
+    aliases: {}

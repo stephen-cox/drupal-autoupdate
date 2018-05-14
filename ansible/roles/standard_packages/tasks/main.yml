@@ -1,0 +1,18 @@
+##
+# Install standard packages
+---
+
+- name: Install standard packages
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+  with_items:
+    - build-essential
+    - curl
+    - git
+    - landscape-common
+    - nano
+    - unzip
+    - update-notifier-common

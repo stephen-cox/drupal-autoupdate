@@ -1,0 +1,11 @@
+##
+# MariaDB - defaults
+---
+
+##
+# Default users to create
+database_users:
+  - name: drupal
+    password: drupal
+    privileges: ALL
+    host: localhost

@@ -1,0 +1,23 @@
+##
+# {{ ansible_managed }}
+# {{ site.name }}.{{ inventory_hostname }} Drupal site configuration
+
+<VirtualHost *:80>
+
+    ServerName {{ site.name }}.{{ inventory_hostname }}
+{% for alias in site.aliases %}
+    ServerAlias {{ alias }}
+{% endfor %}
+    ServerAdmin root
+    DocumentRoot /var/www/{{ site.name }}/web
+
+    ErrorLog ${APACHE_LOG_DIR}/{{ site.name }}-error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ site.name }}-access.log combined
+
+    <Directory /var/www/{{ site.name }}/web>
+        Allow from all
+        Options +Includes -Indexes +FollowSymLinks
+        AllowOverride all
+    </Directory>
+
+</VirtualHost>

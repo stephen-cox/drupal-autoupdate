@@ -1,0 +1,14 @@
+##
+# NTP
+---
+
+- name: NTP
+  hosts: all
+  become: true
+
+  tasks:
+    - include_vars: defaults/main.yml
+    - include: tasks/main.yml
+    
+  handlers:
+    - include: handlers/main.yml

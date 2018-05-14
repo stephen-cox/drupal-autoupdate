@@ -1,0 +1,98 @@
+##
+# Jenkins Slave - tasks
+
+- name: Install Java and required libraries
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+  with_items:
+    - openjdk-8-jdk
+    - python-pip
+
+- name: Install python-jenkins
+  pip:
+    executable: pip2
+    name: python-jenkins
+    state: latest
+
+- name: Create Jenkins user
+  user:
+    name: "{{ jenkins_node_user }}"
+    home: "{{ jenkins_node_user_home }}"
+    shell: /bin/bash
+  tags:
+    - jenkins_slave
+
+#
+- name: Create deploy user SSH directory
+  file:
+    path: "{{ jenkins_node_user_home }}/.ssh"
+    state: directory
+    owner: "{{ jenkins_node_user }}"
+    group: "{{ jenkins_node_user }}"
+    mode: 0775
+
+- name: Add deploy user SSH private key
+  copy:
+    src: deploy_key
+    dest: "{{ jenkins_node_user_home }}/.ssh/id_rsa"
+    owner: "{{ jenkins_node_user }}"
+    group: "{{ jenkins_node_user }}"
+    mode: 0600
+
+- name: Add deploy user SSH public key
+  copy:
+    src: deploy_key.pub
+    dest: "{{ jenkins_node_user_home }}/.ssh/id_rsa.pub"
+    owner: "{{ jenkins_node_user }}"
+    group: "{{ jenkins_node_user }}"
+    mode: 0600
+
+- name: Configure git email for node
+  git_config:
+    name: user.email
+    value: "deploy@{{ ansible_fqdn }}"
+    scope: global
+  become: yes
+  become_user: "{{ jenkins_node_user }}"
+
+- name: Configure git name for node
+  git_config:
+    name: user.name
+    value: "Jenkins Deploy"
+    scope: global
+  become: yes
+  become_user: "{{ jenkins_node_user }}"
+
+- name: Allow Jenkins master to login over SSH
+  authorized_key:
+    user: "{{ jenkins_node_user }}"
+    state: present
+    key: "{{ lookup('file', item) }}"
+  with_items:
+    - ../../jenkins/files/jenkins_key.pub
+
+- name: Check Jenkins node
+  jenkins_api:
+    jenkins_url: "{{ jenkins_master_url }}"
+    command: node_exists
+    args:
+      - "{{ ansible_fqdn }}"
+  register: node
+
+- name: Create Jenkins node
+  jenkins_api:
+    jenkins_url: "{{ jenkins_master_url }}"
+    command: create_node
+    args:
+      - "{{ ansible_fqdn }}"
+    kwargs:
+      remoteFS: "{{ jenkins_node_user_home }}"
+      labels: "{{ ansible_fqdn }}"
+      launcher: hudson.plugins.sshslaves.SSHLauncher
+      launcher_params:
+        credentialsId: jenkins_ssh
+        host: "{{ ansible_fqdn }}"
+  when: not node.node_exists

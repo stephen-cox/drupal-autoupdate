@@ -1,0 +1,205 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.5.5">
+      <gitLabConnection>OCC GitLab</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <hudson.plugins.promoted__builds.JobPropertyImpl plugin="promoted-builds@3.1">
+      <activeProcessNames>
+        <string>finalise_hotfix</string>
+      </activeProcessNames>
+    </hudson.plugins.promoted__builds.JobPropertyImpl>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@3.8.0">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>{{ item.git_repo }}</url>
+        <credentialsId>240c2541-f77a-4af1-8b67-8ffe83a3b92c</credentialsId>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>master</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions>
+      <hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+        <relativeTargetDir>/var/www/{{ item.name }}/gitroot</relativeTargetDir>
+      </hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+    </extensions>
+  </scm>
+  <assignedNode>S18-VM-APP-T142</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+#
+# Synchronise auto site
+#
+
+echo &quot;[Task] Synchronising site&quot;
+drush @${SITE}.auto ssh &apos;git clean -fd&apos;
+if [ &quot;${MULTISITE}&quot; = true ]; then
+  SITES=`drush get-site-list @${SITE}.prod`
+  while read -r MSITE; do
+    drush sql-sync ${MSITE} ${MSITE%.prod}.auto -y
+  done &lt;&lt;&lt; &quot;${SITES}&quot;
+else
+  drush sql-sync @${SITE}.prod @${SITE}.auto -y
+  drush @${SITE}.auto en devel stage_file_proxy -y
+fi
+
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+#
+# Check for and apply any security updates
+#
+
+DATE=$(date +&quot;%Y-%m-%d&quot;)
+
+# Remove ._all from alias for mulitsites
+if [ &quot;${MULTISITE}&quot; = true ]; then
+  SITE=&quot;${SITE%._all}&quot;
+fi
+
+# Check which Drupal version needs to be updated
+if drush @${SITE}.auto status &quot;drupal-version&quot; | grep -q &quot; 8.&quot;; then
+  VERSION=&quot;8&quot;
+else
+  VERSION=&quot;7&quot;
+fi
+
+##
+# Apply update to Drupal 7
+function update_d7 {
+  MODULE=$1
+
+  echo &quot;[Task] Updating ${MODULE}&quot;
+  drush @${SITE}.auto pm-update --yes ${MODULE}
+
+  if [ &quot;${MULTISITE}&quot; = true ]; then
+    SITES=`drush get-site-list @${SITE}._all.auto`
+    while read -r MSITE; do
+      drush ${MSITE}.auto updb --yes
+      drush ${MSITE}.auto cc all
+    done &lt;&lt;&lt; &quot;${SITES}&quot;
+  else
+    drush @${SITE}.auto updb --yes
+    drush @${SITE}.auto cc all
+  fi
+}
+
+##
+# Apply update to Drupal 8
+function update_d8 {
+  MODULE=$1
+
+  echo &quot;[Task] Updating ${MODULE}&quot;
+  # Check if site uses Composer
+  if [ -f ${ROOT_PATH}/gitroot/composer.json ]; then
+    # Use Composer
+    if [ &quot;${MODULE}&quot; == &quot;drupal&quot; ]; then
+      MODULE=core
+    fi
+    cd ${ROOT_PATH}/gitroot/
+    composer update drupal/${MODULE} --with-dependencies
+
+  else
+    # Use Drush
+    drush @${SITE}.auto pm-update --yes ${MODULE}
+  fi
+
+  drush @${SITE}.auto updb --yes
+  drush @${SITE}.auto cr
+}
+
+
+# Check for updates
+echo &quot;[Task] Checking for updates&quot;
+cd ${ROOT_PATH}/current
+if [ -d ./cms ]; then
+  cd cms
+fi
+drush pm-enable --yes update
+drush cron
+UPDATES=`env COLUMNS=1000 drush pm-updatestatus --security-only --pipe | grep -v &apos;\[error\]\|\[warning\]&apos;`
+
+# Install any security updates required
+if [ ! -z &quot;$UPDATES&quot; ]; then
+
+  echo &quot;[Task] Installing updates for: &quot;
+  echo &quot;$UPDATES&quot;
+
+  cd ${ROOT_PATH}/gitroot/
+  git checkout -b hotfix/auto-${DATE}
+
+  for UPDATE in $UPDATES; do
+
+    if [ &quot;${VERSION}&quot; == &quot;8&quot; ]; then
+      update_d8 $UPDATE
+    else
+      update_d7 $UPDATE
+    fi
+
+    cd ${ROOT_PATH}/gitroot/
+    git add -A :/
+    git commit -m &quot;Updated ${UPDATE}&quot;
+
+  done
+
+  #
+  # Behat tests are disabled becuase they&apos;re broken for Drupal 8 installs
+  #
+  #echo &quot;[Task] Running behat tests&quot;
+  #cd ${ROOT_PATH}/behat
+  #export http_proxy_backup=$http_proxy
+  #export http_proxy=
+  #bin/behat || { exit 1; }
+  #export http_proxy=$http_proxy_backup
+
+  cd ${ROOT_PATH}/gitroot/
+  git push origin hotfix/auto-${DATE} || { exit 0; }
+  echo &quot;[Task] Updates installed and pushed to hotfix/auto-${DATE} branch&quot;
+
+else
+
+  echo &quot;[Task] No security updates required&quot;
+
+fi
+</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers>
+    <EnvInjectBuildWrapper plugin="envinject@2.1.5">
+      <info>
+        <propertiesContent>
+SITE={{ item.drush_alias }}
+ROOT_PATH=/var/www/{{ item.name }}
+MULTISITE={% if item.multisite | default(false) %}{{ 'true' }}{% else %}{{ 'false' }}{% endif %}
+        </propertiesContent>
+        <secureGroovyScript plugin="script-security@1.43">
+          <script></script>
+          <sandbox>false</sandbox>
+        </secureGroovyScript>
+        <loadFilesFromMaster>false</loadFilesFromMaster>
+      </info>
+    </EnvInjectBuildWrapper>
+  </buildWrappers>
+</project>
+\ No newline at end of file

@@ -1,0 +1,22 @@
+##
+# Drush install - tasks
+---
+
+- name: Clone Drush from GitHub
+  git:
+    repo: https://github.com/drush-ops/drush.git
+    dest: /usr/share/drush
+    version: "{{ drush_version }}"
+  register: drush_clone
+
+- name: Install Drush dependencies with Composer
+  shell: >
+     composer install
+     chdir=/usr/share/drush
+  when: drush_clone.changed
+
+- name: Create drush symlink
+  file:
+    src: /usr/share/drush/drush
+    dest: /usr/local/bin/drush
+    state: link

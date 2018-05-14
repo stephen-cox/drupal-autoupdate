@@ -1,0 +1,16 @@
+##
+# Drupal site - tasks
+---
+
+- name: Create Drupal DB user
+  mysql_user:
+    name: drupal
+    password: drupal
+    host: localhost
+    priv: "*.*:ALL"
+    state: present
+
+- include_tasks: site.yml
+  with_items: "{{ sites }}"
+  loop_control:
+    loop_var: site

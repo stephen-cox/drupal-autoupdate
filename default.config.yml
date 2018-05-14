@@ -1,0 +1,55 @@
+##
+# Default configuration for Vagrant test environment
+#
+# To override configuration in this file, create a file called config.yml and
+# add the relevant config there.
+---
+
+##
+# Server stack to run.
+servers:
+  - ci
+  - drupal
+
+##
+# Drupal servers
+drupal:
+
+  - name: test.localhost
+    ip: 192.168.30.11
+    ssh_port: 22011
+    mapped_folders:
+      - src: sites/test
+        dest: /var/www
+        owner: vagrant
+        group: www-data
+
+  - name: live.localhost
+    ip: 192.168.30.12
+    ssh_port: 22012
+    mapped_folders:
+      - src: sites/live
+        dest: /var/www
+        owner: vagrant
+        group: www-data
+
+##
+#  CI server
+ci:
+
+  - name: jenkins.localhost
+    ip: 192.168.30.13
+    ssh_port: 22013
+    mapped_folders: {}
+
+##
+# Vagrant box to start with
+vagrant_box: 'geerlingguy/ubuntu1804'
+
+##
+# Memory for each server
+memory: 1024
+
+##
+# CPUs for each server
+cpus: 2

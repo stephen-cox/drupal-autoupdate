@@ -1,0 +1,32 @@
+##
+# PHP - Install PHP 7
+---
+
+- name: Install PHP 7.2 and packages
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+  with_items:
+    - php7.2
+    - php7.2-cli
+    - php7.2-common
+    - php7.2-curl
+    - php7.2-json
+    - php7.2-gd
+    - php7.2-mbstring
+    - php7.2-mysql
+    - php7.2-opcache
+    - php7.2-xml
+    - php7.2-zip
+
+- name: Copy php.ini Apache2 configuration file
+  template:
+    src: php.ini.j2
+    dest: /etc/php/7.2/apache2/php.ini
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - restart apache2

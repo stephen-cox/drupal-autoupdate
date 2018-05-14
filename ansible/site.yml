@@ -1,0 +1,44 @@
+##
+# Server provisioning
+---
+
+##
+# Common provisioning for all servers
+- name: Common
+  hosts: all
+  become: true
+  roles:
+    - standard_packages
+    - ntp
+
+##
+# Drupal server provisioning
+- name: Drupal
+  hosts: drupal
+  become: true
+  roles:
+    - drupal_site
+  tasks:
+    - name: Add deploy user public key to Vagrant user's authorized keys
+      authorized_key:
+        user: vagrant
+        state: present
+        key: "{{ lookup('file', item) }}"
+      with_items:
+        - roles/jenkins_node/files/deploy_key.pub
+
+##
+# CI server provisioning
+- name: CI
+  hosts: ci
+  become: true
+  roles:
+    - jenkins
+
+##
+# CI node provisioning
+- name: CI nodes
+  hosts: test.localhost
+  become: true
+  roles:
+    - jenkins_node

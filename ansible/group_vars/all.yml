@@ -1,0 +1,8 @@
+##
+# Config use across all servers
+---
+
+sites:
+  - name: umami
+    aliases: {}
+    git_url: git@github.com:stephen-cox/umami.git

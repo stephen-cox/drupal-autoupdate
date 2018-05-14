@@ -1,0 +1,15 @@
+##
+# Jenkins Slave - defaults
+---
+
+##
+# Jenkins user on slave
+jenkins_node_user: jenkins
+
+##
+# Jenkins slave user home directory
+jenkins_node_user_home: /var/lib/jenkins
+
+##
+# Jenkins master url
+jenkins_master_url: 'http://192.168.30.13:8080'

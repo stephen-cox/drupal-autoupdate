@@ -1,0 +1,163 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description># Ansible Managed deployment job.&#xd;
+TODO: expand on this description.</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.security.AuthorizationMatrixProperty>
+      <inheritanceStrategy class="org.jenkinsci.plugins.matrixauth.inheritance.NonInheritingStrategy"/>
+      <permission>com.cloudbees.plugins.credentials.CredentialsProvider.Create:{{ jenkins_ad_admin }}</permission>
+      <permission>com.cloudbees.plugins.credentials.CredentialsProvider.Delete:{{ jenkins_ad_admin }}</permission>
+      <permission>com.cloudbees.plugins.credentials.CredentialsProvider.ManageDomains:{{ jenkins_ad_admin }}</permission>
+      <permission>com.cloudbees.plugins.credentials.CredentialsProvider.Update:{{ jenkins_ad_admin }}</permission>
+      <permission>com.cloudbees.plugins.credentials.CredentialsProvider.View:{{ jenkins_ad_admin }}</permission>
+      <permission>hudson.model.Item.Build:{{ jenkins_ad_admin }}</permission>
+      <permission>hudson.model.Item.Build:{{ jenkins_ad_developer }}</permission>
+      <permission>hudson.model.Item.Cancel:{{ jenkins_ad_admin }}</permission>
+      <permission>hudson.model.Item.Cancel:{{ jenkins_ad_developer }}</permission>
+      <permission>hudson.model.Item.Configure:{{ jenkins_ad_admin }}</permission>
+      <permission>hudson.model.Item.Delete:{{ jenkins_ad_admin }}</permission>
+      <permission>hudson.model.Item.Discover:{{ jenkins_ad_admin }}</permission>
+      <permission>hudson.model.Item.Discover:{{ jenkins_ad_developer }}</permission>
+      <permission>hudson.model.Item.Move:{{ jenkins_ad_admin }}</permission>
+      <permission>hudson.model.Item.Read:{{ jenkins_ad_admin }}</permission>
+      <permission>hudson.model.Item.Read:{{ jenkins_ad_developer }}</permission>
+      <permission>hudson.model.Item.Workspace:{{ jenkins_ad_admin }}</permission>
+      <permission>hudson.model.Run.Delete:{{ jenkins_ad_admin }}</permission>
+      <permission>hudson.model.Run.Replay:{{ jenkins_ad_admin }}</permission>
+      <permission>hudson.model.Run.Update:{{ jenkins_ad_admin }}</permission>
+      <permission>hudson.scm.SCM.Tag:{{ jenkins_ad_admin }}</permission>
+    </hudson.security.AuthorizationMatrixProperty>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.5.3">
+      <gitLabConnection>OCC GitLab</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <com.cwctravel.hudson.plugins.extended__choice__parameter.ExtendedChoiceParameterDefinition plugin="extended-choice-parameter@0.76">
+          <name>BRANCH</name>
+          <description>Branch to deploy</description>
+          <quoteValue>false</quoteValue>
+          <saveJSONParameterToFile>false</saveJSONParameterToFile>
+          <visibleItemCount>5</visibleItemCount>
+          <type>PT_SINGLE_SELECT</type>
+          <groovyScript>def git_repo = &quot;{{ item.git_repo }}&quot;
+def command = &quot;git ls-remote -h $git_repo&quot;
+
+def proc = command.execute()
+proc.waitFor()
+
+if ( proc.exitValue() != 0 ) {
+    return [&quot;develop&quot;, &quot;master&quot;]
+}
+
+def branches = proc.in.text.readLines().collect {
+    it.replaceAll(/[a-z0-9]*\trefs\/heads\//, &apos;&apos;)
+}
+branches -= [&quot;develop&quot;, &quot;master&quot;]
+branches = [&quot;develop&quot;, &quot;master&quot;] + branches
+return branches.join(&quot;,&quot;)
+          </groovyScript>
+          <bindings></bindings>
+          <groovyClasspath></groovyClasspath>
+          <multiSelectDelimiter>,</multiSelectDelimiter>
+          <projectName>deploy_{{ item.name }}</projectName>
+        </com.cwctravel.hudson.plugins.extended__choice__parameter.ExtendedChoiceParameterDefinition>
+        <com.cwctravel.hudson.plugins.extended__choice__parameter.ExtendedChoiceParameterDefinition plugin="extended-choice-parameter@0.76">
+          <name>ENVIRONMENT</name>
+          <description>Server environment to deploy git branch to</description>
+          <quoteValue>false</quoteValue>
+          <saveJSONParameterToFile>false</saveJSONParameterToFile>
+          <visibleItemCount>5</visibleItemCount>
+          <type>PT_SINGLE_SELECT</type>
+          <groovyScript>site = &quot;{{ item.drush_alias }}&quot;
+envs = []
+def process = (&quot;drush environments-for-site --exclude=local,prod &quot; + site).execute()
+process.text.eachLine {
+  envs.add it
+}
+return envs</groovyScript>
+          <bindings></bindings>
+          <groovyClasspath></groovyClasspath>
+          <multiSelectDelimiter>,</multiSelectDelimiter>
+          <projectName>deploy_{{ item.name }}</projectName>
+        </com.cwctravel.hudson.plugins.extended__choice__parameter.ExtendedChoiceParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <EnvInjectJobProperty plugin="envinject@2.1.5">
+      <info>
+        <propertiesContent>SITE={{ item.drush_alias }}</propertiesContent>
+        <secureGroovyScript plugin="script-security@1.40">
+          <script></script>
+          <sandbox>false</sandbox>
+        </secureGroovyScript>
+        <loadFilesFromMaster>false</loadFilesFromMaster>
+      </info>
+      <on>true</on>
+      <keepJenkinsSystemVariables>true</keepJenkinsSystemVariables>
+      <keepBuildVariables>true</keepBuildVariables>
+      <overrideBuildParameters>false</overrideBuildParameters>
+    </EnvInjectJobProperty>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+# Jenkins scripts here: https://mygitlab.oxfordshire.gov.uk/systems/jenkins-scripts
+
+# Deploy code
+${JENKINS_HOME}/scripts/drupal-code-deploy.sh ${BRANCH} ${SITE}.${ENVIRONMENT}
+{%- for deploy_group in item.deploy_to_groups %}
+{% if deploy_group == 'live_app_main' %}
+ {{ item.name }}.{{ hostvars[groups['live_app_main'][0]]['admin_domain'] }}
+{% elif deploy_group == 'live_app_intranet' %}
+ {{ item.name }}.{{ hostvars[groups['live_app_intranet'][0]]['admin_domain'] }}
+{% else %}
+ 
+{% endif %}
+{% endfor %}
+</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.plugins.emailext.ExtendedEmailPublisher plugin="email-ext@2.61">
+      <recipientList>$DEFAULT_RECIPIENTS</recipientList>
+      <configuredTriggers>
+        <hudson.plugins.emailext.plugins.trigger.AlwaysTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.RequesterRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>true</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <replyTo>$PROJECT_DEFAULT_REPLYTO</replyTo>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.AlwaysTrigger>
+      </configuredTriggers>
+      <contentType>default</contentType>
+      <defaultSubject>$DEFAULT_SUBJECT</defaultSubject>
+      <defaultContent>$DEFAULT_CONTENT</defaultContent>
+      <attachmentsPattern></attachmentsPattern>
+      <presendScript>$DEFAULT_PRESEND_SCRIPT</presendScript>
+      <postsendScript>$DEFAULT_POSTSEND_SCRIPT</postsendScript>
+      <attachBuildLog>true</attachBuildLog>
+      <compressBuildLog>false</compressBuildLog>
+      <replyTo>$DEFAULT_REPLYTO</replyTo>
+      <saveOutput>false</saveOutput>
+      <disabled>false</disabled>
+    </hudson.plugins.emailext.ExtendedEmailPublisher>
+  </publishers>
+  <buildWrappers/>
+</project>
+\ No newline at end of file

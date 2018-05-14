@@ -1,0 +1,8 @@
+##
+# Drupal site - meta
+---
+
+dependencies:
+  - apache2
+  - mariadb
+  - php

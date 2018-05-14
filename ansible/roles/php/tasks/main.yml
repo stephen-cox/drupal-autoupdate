@@ -1,0 +1,9 @@
+##
+# PHP - tasks
+---
+
+- import_tasks: install.yml
+
+- import_tasks: composer.yml
+
+- import_tasks: drush.yml
