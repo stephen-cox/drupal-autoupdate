@@ -2,44 +2,36 @@
 # Jenkins - job tasks
 ---
 
-- name: Check Jenkins job
-  jenkins_api:
-    jenkins_url: "http://{{ ansible_fqdn }}:8080"
-    command: job_exists
-    args:
-      - "{{ site.name }}"
-  register: job
+- name: Create Jenkins Drupal autoupdate job directory
+  file:
+    path: "/var/lib/jenkins/jobs/{{ site.name }}"
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: 0775
 
-- debug:
-    var: job
+- name: Create Jenkins Drupal autoupdate job configuration
+  template:
+    src: build.xml.j2
+    dest: "/var/lib/jenkins/jobs/{{ site.name }}/config.xml"
+    owner: jenkins
+    group: jenkins
+    mode: 0664
+  notify: restart jenkins
 
-- name: Create Jenkins job
-  jenkins_api:
-    jenkins_url: "http://{{ ansible_fqdn }}:8080"
-    command: create_node
-    args:
-      - "{{ site.name }}"
-      - "{{ lookup('template', 'build.xml.j2') }}"
-  when: not job.job_exists
+- name: Create Jenkins Drupal autoupdate promotions directory
+  file:
+    path: "/var/lib/jenkins/jobs/{{ site.name }}/promotions/deploy"
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: 0775
 
-- name: Check Jenkins job promotion
-  jenkins_api:
-    jenkins_url: "http://{{ ansible_fqdn }}:8080"
-    command: promotion_exists
-    args:
-      - deploy
-      - "{{ site.name }}"
-  register: promotion
-
-- debug:
-    var: promotion
-
-- name: Create Jenkins job promotion
-  jenkins_api:
-    jenkins_url: "http://{{ ansible_fqdn }}:8080"
-    command: create_promotion
-    args:
-      - deploy
-      - "{{ site.name }}"
-      - "{{ lookup('template', 'deploy.xml.j2') }}"
-  when: not promotion.promotion_exists
+- name: Create Jenkins Drupal autoupdate promotions job configuration
+  template:
+    src: deploy.xml.j2
+    dest: "/var/lib/jenkins/jobs/{{ site.name }}/promotions/deploy/config.xml"
+    owner: jenkins
+    group: jenkins
+    mode: 0664
+  notify: restart jenkins
