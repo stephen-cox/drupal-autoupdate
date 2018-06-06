@@ -84,7 +84,9 @@
     owner: jenkins
     group: jenkins
     mode: 0664
-  notify: restart jenkins
+  notify:
+    - stop jenkins
+    - start jenkins
 
 - name: Restart Jenkins if necessary
   meta: flush_handlers
@@ -94,7 +96,9 @@
     dest: /var/lib/jenkins/config.xml
     regexp: '<useSecurity>true</useSecurity>'
     replace: '<useSecurity>false</useSecurity>'
-  notify: restart jenkins
+  notify:
+    - stop jenkins
+    - start jenkins
 
 - name: Restart Jenkins if necessary
   meta: flush_handlers
@@ -119,4 +123,6 @@
     - git
     - promoted-builds
     - ssh-slaves
-  notify: restart jenkins
+  notify:
+    - stop jenkins
+    - start jenkins

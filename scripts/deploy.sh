@@ -40,5 +40,6 @@ echo "
 # [Task] Deploying ${ALIAS} to live environment
 ##
 "
-drush @${ALIAS}.live ssh git pull origin master || { exit 1; }
+cd ${WORKSPACE}/web
+drush @${ALIAS}.live ssh --no-cd "cd /var/www/${ALIAS}/web && git pull origin master" || { exit 1; }
 drush @${ALIAS}.live updb --yes

@@ -25,7 +25,7 @@ echo "<?php
   'password' => 'drupal',
   'port' => '',
   'host' => 'localhost',
-  'database' => 'drupal',
+  'database' => '${ALIAS}',
 );
 
 # Private files

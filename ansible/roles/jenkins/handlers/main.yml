@@ -6,3 +6,13 @@
   service:
     name: jenkins
     state: restarted
+
+- name: start jenkins
+  service:
+    name: jenkins
+    state: started
+
+- name: stop jenkins
+  service:
+    name: jenkins
+    state: stopped
